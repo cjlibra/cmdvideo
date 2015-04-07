@@ -156,7 +156,7 @@ public:
 			m_s_handle = INVALID_HANDLE;	
 			return false;
 		}
-	
+	 
 		if(hwplay_play(m_p_handle,m_hWnd))
 		{
 			//AfxMessageBox("play success");
@@ -164,7 +164,8 @@ public:
 		else
 		{
 			printf("play failed");
-		}
+		} 
+		 
 		//hwplay_set_max_framenum_in_buf(m_p_handle,2);
 		//hwplay_register_yuv_callback_ex(m_p_handle,yuv_fun,(long)this);
 
