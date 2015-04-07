@@ -117,6 +117,17 @@ public:
 		
 		return true;		
 	}
+	bool start_rfid(HWND hWnd)
+	{
+		m_hWnd = hWnd;
+		m_s_handle = HW_NET_OpenVideoEx3(m_l_handle,m_slot,0,0,data_process_rfid,(long)this,1);
+		if(m_s_handle == INVALID_HANDLE)
+		{
+			return false;
+		}
+
+		return true;	
+	}
 
 	bool start_preview(HWND hWnd,int connect_mode,int is_sub = 0)
 	{
@@ -576,9 +587,24 @@ private:
 			y_stride,uv_stride,width,height,time);
 	}
 
+
+	static void CALLBACK data_process_rfid(REAL_HANDLE s_handle,char* buf,int len,int video_type,long user) 
+    {  
+        stream_head* head = (stream_head*)buf;
+        char* extra_data = buf + sizeof(stream_head);
+        int data_len = head->len - sizeof(stream_head);
+        if(head->type == 8)
+       {
+           //这里调用hw_stream_callback()函数(以前该函数是播放库的回调，现在请手动调用就可以了)
+		   hw_stream_callback( s_handle,	0, head->type, extra_data , data_len, user);
+       }
+    }
+
+
 	static void CALLBACK hw_stream_callback(PLAY_HANDLE handle,
 		INT64 stime,
 		int type,
+
 		char* buf,
 		int len,
 		long user)

@@ -65,7 +65,7 @@ int actionvideo()
 	if( g_server_id == INVALID_HANDLE)
 	{
 		
-		sprintf(ip,"%s","192.168.3.3");
+		sprintf(ip,"%s","192.168.3.250");
 		g_server_id = HW_NET_Login(ip,5198,"admin","12345");
 		if(g_server_id != INVALID_HANDLE)
 		{
@@ -109,7 +109,8 @@ int actionvideo()
 			{
 				test  = new net_video_test(g_server_id,0);
 				
-				test->start_preview(NULL,0);
+				//test->start_preview(NULL,0);
+				test->start_rfid(NULL);
 			
 				//test->register_draw(draw_fun,(long)test);
 				//test[startvideocount ] ->enable_audio_preview(1);
