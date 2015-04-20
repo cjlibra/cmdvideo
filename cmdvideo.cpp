@@ -65,7 +65,7 @@ int actionvideo()
 	if( g_server_id == INVALID_HANDLE)
 	{
 		
-		sprintf(ip,"%s","192.168.3.250");
+		sprintf(ip,"%s","192.168.3.2");
 		g_server_id = HW_NET_Login(ip,5198,"admin","12345");
 		if(g_server_id != INVALID_HANDLE)
 		{
@@ -109,7 +109,7 @@ int actionvideo()
 			{
 				test  = new net_video_test(g_server_id,0);
 				
-				//test->start_preview(NULL,0);
+				//test->start_preview(NULL,0,1);
 				test->start_rfid(NULL);
 			
 				//test->register_draw(draw_fun,(long)test);
@@ -130,37 +130,3 @@ int actionvideo()
 	return 0;
 }
 
-
-void CALLBACK  draw_fun(PLAY_HANDLE handle,HDC hDc,LONG nUser )
-{
-	 
-	net_video_test *ntest = (net_video_test*) nUser;
-		 	 
-	//if(g_recved_len > 0)
-	//{
-	//	CString str;
-	//	str.Format("%uKbps / %uKbps",(unsigned long)g_recved_len / 1024 * 8,(unsigned long)g_total_len / 1024 * 8);
-		
-	//}
-
-	if(ntest->t_rfid_data.len > 0
-		&& (time(NULL) - ntest->t_rfid_data.tm) < 3)
-	{		
-		
-		CString str;
-		for(int i = 0; i < ntest->t_rfid_data.len; i++)
-		{
-			CString tmp;
-			tmp.Format("%02x",ntest->t_rfid_data.buf[i]);
-			str = str + " " + tmp;
-		}
-		
-		
-		
-		TRACE("this is rfid is %s\n",str);
-		
-	}
-
-
-	
-}

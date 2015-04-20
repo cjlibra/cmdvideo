@@ -120,12 +120,14 @@ public:
 	bool start_rfid(HWND hWnd)
 	{
 		m_hWnd = hWnd;
-		m_s_handle = HW_NET_OpenVideoEx3(m_l_handle,m_slot,0,0,data_process_rfid,(long)this,1);
+		 m_s_handle = HW_NET_OpenVideoEx3(m_l_handle,m_slot,3,0,data_process_rfid,(long)this,1);
+		//m_s_handle = HW_NET_OpenVideoEx2(m_l_handle,m_slot,1,0,data_process_rfid,(long)this);
 		if(m_s_handle == INVALID_HANDLE)
 		{
+			printf("INVALID_HANDLE\n");
 			return false;
 		}
-
+		//hwplay_register_stream_callback(m_l_handle,hw_stream_callback,(long)this);
 		return true;	
 	}
 
