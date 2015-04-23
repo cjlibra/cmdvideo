@@ -22,7 +22,7 @@ static net_video_test* test = NULL;
 static UINT64 g_recved_len = 0;
 
 
-int actionvideo();
+int actionvideo(CString ip);
 void CALLBACK  draw_fun(PLAY_HANDLE handle,HDC hDc,LONG nUser );
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 {
@@ -31,6 +31,11 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 	HMODULE hModule = ::GetModuleHandle(NULL);
 	HW_NET_Init(5198);	
 
+	if (argc <= 1) {
+		printf("usage:cmd ip\n");
+		return 1;
+
+	}
 	if (hModule != NULL)
 	{
 		// 初始化 MFC 并在失败时显示错误
@@ -42,8 +47,11 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 		}
 		else
 		{
-			actionvideo();
-			getchar();
+			actionvideo(argv[1]);
+			
+			while (1){
+			  Sleep(60*1000*60*24);
+			}
 		}
 	}
 	else
@@ -57,15 +65,15 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 }
 
 
-int actionvideo()
+int actionvideo(CString ip)
 {
 	
-	char ip[255];
+//	char ip[255];
 	long g_server_version;
 	if( g_server_id == INVALID_HANDLE)
 	{
 		
-		sprintf(ip,"%s","192.168.3.2");
+		//sprintf(ip,"%s","192.168.3.2");
 		g_server_id = HW_NET_Login(ip,5198,"admin","12345");
 		if(g_server_id != INVALID_HANDLE)
 		{

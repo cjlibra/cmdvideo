@@ -120,7 +120,7 @@ public:
 	bool start_rfid(HWND hWnd)
 	{
 		m_hWnd = hWnd;
-		 m_s_handle = HW_NET_OpenVideoEx3(m_l_handle,m_slot,3,0,data_process_rfid,(long)this,1);
+		 m_s_handle = HW_NET_OpenVideoEx3(m_l_handle,0,0,0,data_process_rfid,(long)this,0);
 		//m_s_handle = HW_NET_OpenVideoEx2(m_l_handle,m_slot,1,0,data_process_rfid,(long)this);
 		if(m_s_handle == INVALID_HANDLE)
 		{
@@ -638,6 +638,7 @@ private:
 				  printf("%02X ",*(unsigned  char *)(rfid_data+i));
 				}
 				printf("\n");
+				fflush(stdout);
 			}
 		}
 	}
