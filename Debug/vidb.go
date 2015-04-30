@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ziutek/mymysql/mysql"
 	_ "github.com/ziutek/mymysql/native" // Native engine
+	"strings"
 	//"io"
 	//"io/ioutil"
 	"log"
@@ -64,30 +65,29 @@ func getiprder() {
 				if item.ipreader == rdstat.ipreader {
 					iflag = 1
 					break
-				} else {
-					iflag = 0
-
 				}
 
 			}
 			if iflag == 0 {
 				rdstats = append(rdstats, rdstat)
+				go service(rdstat.ipreader)
+				fmt.Println("++" + rdstat.ipreader)
 			}
 
 		}
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 15)
 		fmt.Println(rdstats)
 
 		db.Close()
 	}
 }
 func main() {
-	getiprder()
-	time.Sleep(time.Second * 50)
+	go getiprder()
+	time.Sleep(time.Hour * 100)
 }
 
-func service() {
-	lf, err := os.OpenFile("angel.txt", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0600)
+func service(ip string) {
+	lf, err := os.OpenFile("angel.txt"+ip, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0600)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -96,34 +96,52 @@ func service() {
 	// 日志
 	l := log.New(lf, "", os.O_APPEND)
 
-	for {
-		cmd := exec.Command("cmdvideo.exe", "192.168.3.2")
-		//cmd.Stdout = os.Stdout
+	cmd := exec.Command("cmdvideo.exe", ip)
+	//cmd.Stdout = os.Stdout
 
-		//cmd.Stderr = os.Stderr
-		stdout, _ := cmd.StdoutPipe()
+	//cmd.Stderr = os.Stderr
+	stdout, _ := cmd.StdoutPipe()
 
-		err := cmd.Start()
-		if err != nil {
-			l.Printf("%s 启动命令失败", time.Now().Format("2006-01-02 15:04:05"), err)
+	err = cmd.Start()
+	if err != nil {
+		l.Printf("%s 启动命令失败", time.Now().Format("2006-01-02 15:04:05"), err)
 
-			time.Sleep(time.Second * 5)
-			continue
-		}
-		l.Printf("%s 进程启动", time.Now().Format("2006-01-02 15:04:05"), err)
-
-		fileReader := bufio.NewReader(stdout)
-
-		for {
-			w, _ := fileReader.ReadString('\n')
-
-			fmt.Printf(w)
-
-		}
-
-		err = cmd.Wait()
-		l.Printf("%s 进程退出", time.Now().Format("2006-01-02 15:04:05"), err)
-
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 5)
+		return
 	}
+	l.Printf("%s 进程启动", time.Now().Format("2006-01-02 15:04:05"), err)
+
+	fileReader := bufio.NewReader(stdout)
+	var rfidstr string
+	for {
+		w, _ := fileReader.ReadString('\n')
+
+		tmp := strings.Split(w, " ")
+
+		if len(w) > 30 {
+			rfidstr = strings.Join(tmp, "")[12:22]
+
+			//fmt.Printf(rfidstr + "\n")
+			go InsertData(rfidstr, ip)
+		}
+	}
+
+	err = cmd.Wait()
+	l.Printf("%s 进程退出", time.Now().Format("2006-01-02 15:04:05"), err)
+
+}
+
+func InsertData(rfidstr string, ip string) {
+	db := opendb()
+	defer db.Close()
+
+	stmt, err := db.Prepare("insert into vids(startime,cardid,readerid) select ? , card.id,reader.id from card inner join reader where reader.ipreader = ? and card.cardno = ? ")
+
+	checkError(err)
+
+	_, err = stmt.Run(time.Now().Format("2006-01-02 15:04:05"), ip, rfidstr)
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05") + " " + ip + " " + rfidstr)
+
+	checkError(err)
+
 }

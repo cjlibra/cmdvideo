@@ -131,6 +131,7 @@ int actionvideo(CString ip)
 		{
 			CString tmpstr = "µÇÂ¼ ";
 			printf(tmpstr+ip+" Ê§°Ü!");
+			exit(1);
 		}
 	}
 
