@@ -21,7 +21,7 @@ func checkError(error error) {
 }
 func opendb() mysql.Conn {
 
-	db := mysql.New("tcp", "", "127.0.0.1:3306", "root", "123456", "rfvid")
+	db := mysql.New("tcp", "", "192.168.1.14:3306", "root", "anti410", "rfvid")
 
 	err := db.Connect()
 	if err != nil {
@@ -58,7 +58,7 @@ func getiprder() {
 			}
 
 			rdstat.rdid = row.Int(res.Map("id"))
-			rdstat.ipreader = row.Str(res.Map("ipreader"))
+			rdstat.ipreader = row.Str(res.Map("ipaddress"))
 			rdstat.istat = 0
 			iflag := 0
 			for _, item := range rdstats {
@@ -119,7 +119,7 @@ func service(ip string) {
 		tmp := strings.Split(w, " ")
 
 		if len(w) > 30 {
-			rfidstr = strings.Join(tmp, "")[12:22]
+			rfidstr = strings.Join(tmp, "")[12:24]
 
 			//fmt.Printf(rfidstr + "\n")
 			go InsertData(rfidstr, ip)
@@ -135,7 +135,7 @@ func InsertData(rfidstr string, ip string) {
 	db := opendb()
 	defer db.Close()
 
-	stmt, err := db.Prepare("insert into vids(startime,cardid,readerid) select ? , card.id,reader.id from card inner join reader where reader.ipreader = ? and card.cardno = ? ")
+	stmt, err := db.Prepare("insert into monitorlog(begintime,cardid,readerid) select ? , card.id,reader.id from card inner join reader where reader.ipaddress = ? and card.UID = ? ")
 
 	checkError(err)
 
