@@ -27,7 +27,8 @@ typedef long SERIAL_HANDLE;
 #define HW_ALARM_SLOT_LOST				12
 #define HW_ALARM_DSP						13
 #define HW_ALARM_ANALYZE				14
-#define HW_ALARM_RFID                    15
+#define HW_ALARM_RFID					15
+#define HW_ALARM_MONITOR    16 //送检
 
 //查找回放文件返回值
 #define HWNET_FILE_SUCCESS		1000	//获取文件成功
@@ -386,5 +387,43 @@ HOWELL_NET_API BOOL _stdcall HW_NET_SET_SetVout(USER_HANDLE lUserID,net_vout_t* 
 
 //====================删除录像文件===========================
 HOWELL_NET_API BOOL _stdcall HW_NET_SET_DeleteFile(USER_HANDLE lUserID,tRecFile* rec_file);
+
+//===================NVR通道设置(支持GB2312)=============================
+/*
+详细说明请参照tChannelSetEx2
+*/
+HOWELL_NET_API BOOL _stdcall HW_NET_SET_GetChannelSetEx2(USER_HANDLE lUserID,tChannelSetEx2* pChanSetEx2);
+HOWELL_NET_API BOOL _stdcall HW_NET_SET_SetChannelSetEx2(USER_HANDLE lUserID,tChannelSetEx2* pChanSetEx2);
+HOWELL_NET_API BOOL _stdcall HW_NET_SET_GetChanelSlotByID(USER_HANDLE lUserID,tSlotByID* pSlotByID);
+
+//===================网络测速=========================================
+typedef long NET_DIAGNOSTICS_HANDLE;
+HOWELL_NET_API NET_DIAGNOSTICS_HANDLE _stdcall HW_NET_DIAGNOSTICS_Start(USER_HANDLE lUserID,net_diagnostics_cfg_t* cfg);
+HOWELL_NET_API BOOL _stdcall HW_NET_DIAGNOSTICS_GetStatus(NET_DIAGNOSTICS_HANDLE h,net_diagnostics_status_t* status);;
+HOWELL_NET_API BOOL _stdcall HW_NET_DIAGNOSTICS_Stop(NET_DIAGNOSTICS_HANDLE h);
+
+//===================能力值获取函数======================================
+HOWELL_NET_API BOOL _stdcall HW_NET_GetCapabilities(USER_HANDLE lUserID,net_capability_t* capability);
+
+//===================六面体===========================================
+/*
+HOWELL_NET_API BOOL  _stdcall HW_NET_SET_GetSubSystemInfo(USER_HANDLE lUserID,tAllSubSystemInfo * value);
+HOWELL_NET_API BOOL  _stdcall HW_NET_SET_SetSubSystemInfo(USER_HANDLE lUserID,tAllSubSystemInfo * value);
+HOWELL_NET_API BOOL  _stdcall HW_NET_SET_GetIVMCameraParam(USER_HANDLE lUserID,tIVMCameraParam * value);
+HOWELL_NET_API BOOL  _stdcall HW_NET_SET_SetIVMCameraParam(USER_HANDLE lUserID,tIVMCameraParam * value);
+*/
+
+//===================================================================
+HOWELL_NET_API BOOL _stdcall HW_NET_SET_IPCam_GetMisc(USER_HANDLE lUserID,net_ipcam_misc_t* misc);
+HOWELL_NET_API BOOL _stdcall HW_NET_SET_IPCam_SetMisc(USER_HANDLE lUserID,net_ipcam_misc_t* misc);
+
+
+//===================灯光控制===========================================
+HOWELL_NET_API BOOL _stdcall HW_NET_SET_SetLampState(USER_HANDLE lUserID,net_lamp_state_t* lamp_state);
+HOWELL_NET_API BOOL _stdcall HW_NET_SET_GetLampState(USER_HANDLE lUserID,net_lamp_state_t* lamp_state);
+
+//====================================================================
+HOWELL_NET_API BOOL _stdcall HW_NET_SET_GetRfidConfig(USER_HANDLE lUserID,net_rfid_info_t* rfid_info);
+HOWELL_NET_API BOOL _stdcall HW_NET_SET_SetRfidConfig(USER_HANDLE lUserID,net_rfid_info_t* rfid_info);
 
 #endif

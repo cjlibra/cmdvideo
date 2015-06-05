@@ -214,7 +214,10 @@ struct tVideoStatus{
 
 /*alarm */
 struct tAlarmData{
-	int value;			//报警的视频通道，如果为硬盘报警则为硬盘序号
+	//报警的视频通道
+	//如果为硬盘报警则为硬盘序号
+	//如果报警类型为HW_ALARM_MONITOR,0--参数设置(get) 1--参数保存(set)  2--回放
+	int value;			
 	int status;	    
 	int reserved[32];
 };
@@ -555,7 +558,8 @@ typedef struct{
 	INT64 volume; //硬盘容量
 	INT64 free;//可用容量
 	int state;//硬盘状态 0- 正常 1-休眠 2-不正常
-	int reserved[32];
+	int nindex; //对应的SATA口
+	int reserved[31];
 }tEachHarddiskInfo;
 
 #define  MAX_HARD_DISK_COUNT 16
@@ -843,6 +847,11 @@ struct tChannelSetEx{
 
 typedef enum {
 	IPCAM_ESHUTTER_1_SEC=0, /* 1 sec */
+	IPCAM_ESHUTTER_2_SEC,
+	IPCAM_ESHUTTER_3_SEC,
+	IPCAM_ESHUTTER_4_SEC,
+	IPCAM_ESHUTTER_5_SEC,
+	IPCAM_ESHUTTER_7_SEC,
 	IPCAM_ESHUTTER_10_SEC, /* 1/10 sec */
 	IPCAM_ESHUTTER_12_SEC, /* 1/12 sec */
 	IPCAM_ESHUTTER_15_SEC,
@@ -1120,7 +1129,7 @@ struct tAutoFocus{
 	//块为8 * 5
 	char x;//0-7
 	char y;//0-4
-	char w;//1-7
+	char w;//1-8
 	char h;//1-5
 	char reserve[32];
 };
@@ -1237,12 +1246,221 @@ typedef struct
 	unsigned char reserve[64];
 }net_vout_t;
 
+struct tChannelSetEx2{
+	int	 slot;
+	int     ntype;     // 0--howell device, 1--onvif device, 2--RTSP	3--GBIN
+	char    username[32];	// 0--用户名	// 1--用户名
+	char    password[32];	// 0--密码    	// 1--密码
+	char    ipaddress[128];	// 0--IP地址	// 1--serviceaddress	// 2--RTSP主码流URL	// 3--国标摄像机ID
+	char    profilename[128]; // 2--RTSP子码流URL	// 3--GB中心ID
+	int     nport;   // 0--端口号
+	int     nchannelnum;	// 0--连接的通道号
+	int     busingtcp; // 1--是否采用TCP连接	// 2--是否采用TCP连接
+
+	char name[128]; // 3--通道名称
+	int extend_len; // 3--扩展数据
+	char extend[1576]; // 3--扩展数据
+};
+
+struct tSlotByID{
+	char gbid[128];
+	int slot;
+};
+
+typedef struct  
+{	
+	//如果为1,表明通道号有效，如果想要测试ipc经过NVR到客户端的网速，需要设置该值
+	int flag;
+	
+	//通道号
+	int slot;
+
+	//0: TCP 1:UDP
+	int connect_mode;
+
+	//0:服务端至客户端  1:客户端至服务端 2:双向
+	int check_mode;
+
+	//0:以最大速度发送  其他为发送间隔，单位毫秒(0-1000)
+	int send_interval;
+
+	//每次发送的包长(TCP:1-128K UDP:1-1400)
+	int intervl_data_len;
+
+	//保留必须为0
+	int reserve[4];
+}net_diagnostics_cfg_t;
+
+typedef struct  
+{
+	//总的包个数
+	unsigned long long total_packets;
+
+	//收到的包个数
+	unsigned long long total_recv_packets;
+
+	//丢失的包个数
+	unsigned long long total_lost_packets;
+
+	//错误的包个数
+	unsigned long long total_error_packets;
+
+	//持续时间，单位为豪秒
+	unsigned long long duration;
+
+	//速率kbps
+	unsigned int bps;
+
+	//保留必须为0
+	int reserve[16];
+}net_diagnostics_status_t;
+
 typedef struct
- {
-	 int slot;
+{
+	//0xffffffff:获取设备本身的能力值
+	//0-256:设备通道的能力值
+	int slot;
+
+	//第0位为1:支持 rtsp/udp
+	//第1位为1:支持 rtsp/tcp
+	//第2位为1:支持 rtsp/http/tcp
+	int rtsp_capability_flag;
+
+	//第0位为1:支持浩维协议校时
+	//第1位为1:支持NTP校时
+	int sync_time_capability_flag;
+
+	//第0位为1:支持上下控制
+	//第1位为1:支持左右控制
+	//第2位为1:支持zoom控制
+	//第3位为1:支持自动聚焦
+	//第4位为1:支持预置点
+	int ptz_capability_flag;
+
+	//第0位为1:支持snmp
+	//第1位为1:支持ipv6
+	//第2位为1:支持PPPOE
+	//第3位为1:支持老版本搜索协议
+	//第4位为1:支持新版本搜索协议
+	//第5位为1:支持WEB
+	//第6位为1:支持WIFI
+	int net_capability_flag;
+
+	//第0位为1:支持SD卡储存
+	//第1位为1:支持硬盘储存
+	//第2位为1:支持RAID
+	int storage_capabilicity_flag;
+
+	//第0位为1:支持ONVIF
+	//第1位为1:支持GB28181
+	int protocol_capability_flag;
+
+	//第0位为1:支持温度检测
+	//第1位为1:支持电压检测
+	int diagnostics_capability_flag;
+
+	//第0位为1:支持H264
+	//第1位为1:支持MJPEG
+	int video_encode_capability_flag;
+
+	//第0位为1:支持G711U
+	//第1位为1:支持G711A
+	//第2位为1:支持AAC
+	int audio_encode_capability_flag;
+
+	//0:普通IPC
+	//1:后焦IPC
+	//2:球机
+	//3:一体机
+	//4:半球
+	//100:NVR
+	int device_type;
+
+	//0:不支持日夜切换
+	//1:支持日夜切换
+	//2:支持日夜切换且可以设置灵敏度
+	//3:支持日夜切换，由外设控制
+	int daynight_capability_flag;
+
+	//最大通道数
+	int max_slot;
+
+	//每个通道的子码流数目
+	int max_sub_streams;
+
+	//保留必须为0
+	int reserve[32];
+}net_capability_t;
+
+struct tSubSystemInfo
+{
+
+	char bySubSystemType;//子系统 1-编码子系统 （此参数只能获取)
+	char byChan;//子系统通道数目，编码子系统为编码通道数目
+	char bySlotNum;//槽位号，次参数只能获取 从1开始 （此参数只 能获取）
+	char byState;//子系统状态 0-正常，1-异常... （此参数只能获取)
+	char sSubSystemIP[IP_LENGTH];    //IP地址（可修改）
+	char sSubSystemIPMask[IP_LENGTH];   //子网掩码 （可修改）
+	char sSubSystemGateway[IP_LENGTH];  //网关地址 （可修改）
+	short wSubSystemPort;   //子系统端口号（可修改）
+	char byMACAddr[6];    //物理地址(只能获取)
+	char sUsername[MAX_NAME_LEN];    //子系统用户名 （此参数只能获取）
+	char sPassword[MAX_PASS_LEN];    //子系统密码 （此参数只能获取）
+	char sSerialNumber[HW_MAX_SERIALID];    //序列号（此参数只能获取）
+	char sSubSystemName[MAX_NAME_LEN];  //子系统名称 （可修改）
+	char byRes[128];     //保留
+};
+#define MAX_SUBSYSTEM_NUM 64
+struct tAllSubSystemInfo
+{
+	int dwSubSystemNum;
+	struct tSubSystemInfo struSubSystemInfo[MAX_SUBSYSTEM_NUM];
+	char byRes[16];
+};
+
+struct tIVMSize
+{
+	int width;
+	int height;
+};
+struct tIVMPointD
+{
+	double x;
+	double y;
+};
+struct tIVMCameraParam
+{
+	struct tIVMSize size; //图像尺寸
+	struct tIVMPointD focus;   //焦距
+	struct tIVMPointD center;  //中心
+	double k[8];     //径向畸变系数k1
+	double p[2];     //切向畸变系数p1
+	char byRes[128];
+};
+
+typedef struct  
+{
+	int slot;
+	int state;
+	int reserve[4];
+}net_lamp_state_t;
+
+typedef struct
+{
+	int id;
+	int attenuation;
+	int type;
+	int range_beg;
+	int range_end;
+	int reserve[4];
+}net_rfid_info_t;
+
+typedef struct
+{
+	int slot;
 	char buf[255];
-	 int len; 
-	 char reserve[4];
+	int len; 
+	char reserve[4];
 }net_rfid_alarm_t;
 
 #endif

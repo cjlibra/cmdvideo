@@ -6,6 +6,8 @@
 
 #include "net_video_test.h"
 
+ 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -21,7 +23,7 @@ USER_HANDLE g_server_id = INVALID_HANDLE;
 static net_video_test* test = NULL;
 static UINT64 g_recved_len = 0;
 
-
+int attenuateRfid(CString ip , int value);
 int actionvideo(CString ip);
 void CALLBACK  draw_fun(PLAY_HANDLE handle,HDC hDc,LONG nUser );
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
@@ -31,8 +33,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 	HMODULE hModule = ::GetModuleHandle(NULL);
 	HW_NET_Init(5198);	
 
-	if (argc <= 1) {
-		printf("usage:cmd ip\n");
+	if (argc <= 2) {
+		printf("usage:cmd ip attenuation\n");
 		return 1;
 
 	}
@@ -47,11 +49,17 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 		}
 		else
 		{
-			actionvideo(argv[1]);
-			
-			while (1){
-			  Sleep(60*1000*60*24);
+			if ( atoi(argv[2]) < 0){
+			    actionvideo(argv[1]);
+				while (1){
+				  Sleep(60*1000*60*24);
+				}
 			}
+			else{
+                attenuateRfid(argv[1] , atoi(argv[2]));
+				printf("设置值为%d\n",atoi(argv[2]));
+			}
+			
 		}
 	}
 	else
@@ -64,6 +72,83 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 	return nRetCode;
 }
 
+int attenuateRfid(CString ip , int value)
+{
+	long g_server_version;
+	if( g_server_id == INVALID_HANDLE)
+	{
+		
+		//sprintf(ip,"%s","192.168.3.2");
+		g_server_id = HW_NET_Login(ip,5198,"admin","12345");
+		if(g_server_id != INVALID_HANDLE)
+		{
+		//	m_slots.ResetContent();	
+			int g_window_count = HW_NET_GetWindowCount(g_server_id);			
+			char str[255];
+			
+			for(int i = 0; i < g_window_count; i++)
+			{
+				sprintf(str,"通道%d",i + 1);
+			 	//this->m_combochanctrl.AddString(str);
+			}
+		 	//this->m_combochanctrl.SetCurSel(0);
+			
+	 
+			
+			HW_NET_SET_GetDvrVersion(g_server_id,&g_server_version);
+/*
+			if(VERSION_IPCAM(g_server_version)){
+				m_svr_type.AddString("ip camera");
+			}else if(VERSION_NVR(g_server_version)){
+				m_svr_type.AddString("nvr");
+			}else if(VERSION_HIS(g_server_version)
+				|| VERSION_HIS_RAILWAY(g_server_version)){
+				m_svr_type.AddString("his");
+			}
+			m_svr_type.SetCurSel(0);
+*/
+			HW_NET_SET_RegisterAlarm(g_server_id,1);  //m_enable_alarm);
+
+			//SetTimer(TIMER_HEARTBEAR,5000,NULL);
+
+			//AfxMessageBox("登录成功!");
+			SYSTEMTIME stTime;
+
+            GetLocalTime(&stTime);
+			HW_NET_SET_SetSystime(g_server_id, &stTime);
+		 
+		 
+			if(g_server_id != INVALID_HANDLE)
+			{
+				net_rfid_info_t net_rfid_info;
+				memset(&net_rfid_info,0,sizeof(net_rfid_info));
+				net_rfid_info.attenuation = value;
+
+				if(!HW_NET_SET_SetRfidConfig(g_server_id,&net_rfid_info))
+				{
+					printf("设置RFID设置失败!\n");
+					return FALSE;
+				}
+
+	                printf("设置RFID设置成功!\n");
+
+			
+			  
+			}
+
+		}
+		else
+		{
+			CString tmpstr = "登录 ";
+			printf(tmpstr+ip+" 失败!");
+			exit(1);
+		}
+	}
+
+	return TRUE;
+
+
+}
 
 int actionvideo(CString ip)
 {
