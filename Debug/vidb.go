@@ -4,7 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/ziutek/mymysql/mysql"
-	_ "github.com/ziutek/mymysql/native" // Native engine
+	//_ "github.com/ziutek/mymysql/native" // Native engine
+	_ "github.com/ziutek/mymysql/thrsafe" // hreadsafe engine
 	"strings"
 	//"io"
 	//"io/ioutil"
@@ -16,25 +17,27 @@ import (
 
 func checkError(error error) {
 	if error != nil {
-		panic("ERROR: " + error.Error()) // terminate program
+		fmt.Println("ERROR: " + error.Error()) // terminate program
 	}
 }
 func opendb() mysql.Conn {
-
+here:
 	db := mysql.New("tcp", "", "192.168.1.14:3306", "root", "anti410", "rfvid")
 
 	err := db.Connect()
 	if err != nil {
-		panic(err)
+		//panic(err)
+		time.Sleep(time.Second * 10)
+		goto here
 	}
 	return db
 
 }
 
 type RDSTAT struct {
-	rdid     int
-	ipreader string
-	istat    int
+	rdid  int
+	ipnvr string
+	istat int
 }
 
 var rdstat RDSTAT
@@ -42,9 +45,9 @@ var rdstats []RDSTAT
 
 func getiprder() {
 	for {
-		db := opendb()
+		db1 := opendb()
 
-		res, err := db.Start("select * from reader")
+		res, err := db1.Start("select * from nvr")
 		checkError(err)
 
 		for {
@@ -58,11 +61,11 @@ func getiprder() {
 			}
 
 			rdstat.rdid = row.Int(res.Map("id"))
-			rdstat.ipreader = row.Str(res.Map("ipaddress"))
-			rdstat.istat = 0
+			rdstat.ipnvr = row.Str(res.Map("ipaddress"))
+			rdstat.istat = row.Int(res.Map("state"))
 			iflag := 0
 			for _, item := range rdstats {
-				if item.ipreader == rdstat.ipreader {
+				if item.ipnvr == rdstat.ipnvr {
 					iflag = 1
 					break
 				}
@@ -70,24 +73,33 @@ func getiprder() {
 			}
 			if iflag == 0 {
 				rdstats = append(rdstats, rdstat)
-				go service(rdstat.ipreader)
-				fmt.Println("++" + rdstat.ipreader)
+				channel := 0
+				for channel = 0; channel < 16; channel++ {
+					go service(rdstat.ipnvr, channel)
+					time.Sleep(time.Second * 5)
+				}
+				fmt.Println("++" + rdstat.ipnvr + " " + fmt.Sprintf("%d", channel))
 			}
 
 		}
 		time.Sleep(time.Second * 15)
 		fmt.Println(rdstats)
 
-		db.Close()
+		db1.Close()
 	}
 }
+
 func main() {
+
 	go getiprder()
 	time.Sleep(time.Hour * 100)
 }
 
-func service(ip string) {
-	lf, err := os.OpenFile("angel.txt"+ip, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0600)
+func service(ip string, channel int) {
+	db := opendb()
+	defer db.Close()
+
+	lf, err := os.OpenFile("angel.txt"+ip+"-"+fmt.Sprintf("%d", channel), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0600)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -96,7 +108,7 @@ func service(ip string) {
 	// 日志
 	l := log.New(lf, "", os.O_APPEND)
 
-	cmd := exec.Command("cmdvideo.exe", ip)
+	cmd := exec.Command("cmdvideo.exe", ip, "-1", fmt.Sprintf("%d", channel))
 	//cmd.Stdout = os.Stdout
 
 	//cmd.Stderr = os.Stderr
@@ -106,7 +118,6 @@ func service(ip string) {
 	if err != nil {
 		l.Printf("%s 启动命令失败", time.Now().Format("2006-01-02 15:04:05"), err)
 
-		time.Sleep(time.Second * 5)
 		return
 	}
 	l.Printf("%s 进程启动", time.Now().Format("2006-01-02 15:04:05"), err)
@@ -122,7 +133,7 @@ func service(ip string) {
 			rfidstr = strings.Join(tmp, "")[12:24]
 
 			//fmt.Printf(rfidstr + "\n")
-			go InsertData(rfidstr, ip)
+			go InsertData(db, rfidstr, ip, channel)
 		}
 	}
 
@@ -131,16 +142,20 @@ func service(ip string) {
 
 }
 
-func InsertData(rfidstr string, ip string) {
-	db := opendb()
-	defer db.Close()
+func InsertData(db mysql.Conn, rfidstr string, ip string, channel int) {
 
-	stmt, err := db.Prepare("insert into monitorlog(begintime,cardid,readerid) select ? , card.id,reader.id from card inner join reader where reader.ipaddress = ? and card.UID = ? ")
+    err :=db.Ping()
+	checkError(err)
+	if err != nil {
+	    return
+	}
+	
+	stmt, err := db.Prepare("insert into monitorlog(begintime,endtime,cardid,readerid) select ? ,?, card.id,nrrelation.readerid from card inner join nrrelation  join nvr where nvr.ipaddress = ? and card.UID = ? and nrrelation.channelNum = ?")
 
 	checkError(err)
 
-	_, err = stmt.Run(time.Now().Format("2006-01-02 15:04:05"), ip, rfidstr)
-	fmt.Println(time.Now().Format("2006-01-02 15:04:05") + " " + ip + " " + rfidstr)
+	_, err = stmt.Run(time.Now().Format("2006-01-02 15:04:05"), time.Now().Format("2006-01-02 15:04:05"), ip, rfidstr, channel)
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05") + " " + ip + " " + rfidstr + " " + fmt.Sprintf("%d", channel))
 
 	checkError(err)
 

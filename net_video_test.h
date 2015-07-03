@@ -11,6 +11,8 @@
 #pragma comment(lib,"flv_convert.lib")
 #include "StdAfx.h"
 
+#include "mysql.h"
+#pragma comment(lib,"mysqlclient.lib")
  
 
 typedef struct {
@@ -42,18 +44,26 @@ class net_video_test
 public:
 	rfid_data_t t_rfid_data;
 	CString  ip;
-	CString filemovie;
+	unsigned int channel;
+	MYSQL *dbconn;
 public:
 	net_video_test(USER_HANDLE handle,int slot)
 		:m_s_handle(INVALID_HANDLE),m_l_handle(handle),m_slot(slot)
 		,m_p_handle(INVALID_HANDLE),m_bsaveing(false),m_hfile(INVALID_HANDLE_VALUE)
 	{	
+		 
 		t_rfid_data.len  = 0;
+		dbconn = open_db();
 	}
 
 	~net_video_test()
 	{
 		stop_preview();
+		if (dbconn != NULL){
+			mysql_close(dbconn); 
+			mysql_library_end();
+
+		}
 	}
 
 	bool is_preview()
@@ -120,7 +130,7 @@ public:
 	bool start_rfid(HWND hWnd)
 	{
 		m_hWnd = hWnd;
-		 m_s_handle = HW_NET_OpenVideoEx3(m_l_handle,0,0,0,data_process_rfid,(long)this,0);
+		 m_s_handle = HW_NET_OpenVideoEx3(m_l_handle,m_slot,0,0,data_process_rfid,(long)this,0);
 		//m_s_handle = HW_NET_OpenVideoEx2(m_l_handle,m_slot,1,0,data_process_rfid,(long)this);
 		if(m_s_handle == INVALID_HANDLE)
 		{
@@ -639,9 +649,98 @@ private:
 				}
 				printf("\n");
 				fflush(stdout);
+				
+				ptest->insertdata(ptest->dbconn,rfid_data);
 			}
 		}
 	}
-};
 
+public:
+		int insertdata(MYSQL *dbconn ,char *rfid)
+		{
+			
+			CString sql = "insert into monitorlog(begintime,endtime,cardid,readerid) select '?1' ,'?2', card.id,nrrelation.readerid from card inner join nrrelation  join nvr where nvr.ipaddress = '?3' and card.UID = '?4' and nrrelation.channelNum = ?5 and nvr.id = nrrelation.nvrid";
+			time_t  t;  
+			struct tm  *tp; 
+			t=time(NULL); 
+			tp=localtime(&t);  
+			CString nowtime;
+			CString onechar;
+			CString rfidstr;
+			
+			nowtime.Format("%d-%02d-%02d %02d:%02d:%02d",tp->tm_year+1900,tp->tm_mon+1,tp->tm_mday,tp->tm_hour,tp->tm_min,tp->tm_sec);
+			//printf("%d/%d/%d/n",tp->tm_mon+1,tp->tm_mday,tp->tm_year+1900);  
+			//printf("%d:%d:%d/n",tp->tm_hour,tp->tm_min,tp->tm_sec); 
+			
+			printf(nowtime);
+			for (int i=0;i<4;i++){
+				onechar.Format("%02X",*((unsigned char *)(rfid+8+i)));
+				rfidstr = rfidstr + onechar;
+
+			}
+			printf(rfidstr);
+			CString tmpstr;
+			tmpstr.Format("%d",channel);
+			sql.Replace("?1",nowtime);
+			sql.Replace("?2",nowtime);
+			sql.Replace("?3",ip);
+			sql.Replace("?4",rfidstr);
+			sql.Replace("?5",tmpstr);
+			printf(sql);
+
+			if(mysql_query(dbconn,sql)){
+				// printf(dbconn,"执行插入失败");
+				//printf("error fail\n");
+				printf("%s:\nError %u (%s)\n","执行插入失败",mysql_errno(dbconn),mysql_error(dbconn));
+				dbconn = open_db();
+				return -1;
+			}else{
+				unsigned int lines = (unsigned long)mysql_affected_rows(dbconn);
+				if (lines > 0 ){
+				    printf("插入成功,受影响行数:%lu\n",lines);
+				}
+				
+			}
+ 
+			return 0;
+
+
+		}
+
+		MYSQL * open_db(  )
+		{
+			static char *opt_host_name = "192.168.1.14";        /*服务器主机名称 默认为localhost*/
+			static char *opt_user_name = "root";        /*数据库用户名 默认为当前登录名*/
+			static char *opt_password = "anti410";        /*密码 默认为空*/
+			static unsigned int opt_port_num = 0;            /*端口 使用内建值*/
+			static char *opt_socket_name = NULL;    /*socket name (use build-in value)*/
+			static char *opt_db_name = "rfvid";        /*数据库 名称 默认为空*/
+			static unsigned int opt_flags = 0; 
+
+			static MYSQL *conn;                        /*pointer to connection handler*/
+
+
+			if( (conn = mysql_init(NULL))== NULL){
+				fprintf(stderr,"mysql 初始化失败(可能是内存溢出)!\n");
+				return NULL;
+			}
+			/*连接到数据库*/
+			if(mysql_real_connect(conn,opt_host_name,opt_user_name,opt_password,
+				opt_db_name,opt_port_num,opt_socket_name,opt_flags) == NULL){            
+            
+					fprintf(stderr,"mysql_real_connect 失败:\nError %u (%s)\n",
+						mysql_errno(conn),mysql_error(conn));    
+
+					mysql_close(conn);
+					return NULL;
+			}
+
+			printf("db success\n");
+			return conn;
+			return 0;
+
+		}
+
+
+};
 #endif

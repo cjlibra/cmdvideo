@@ -18,13 +18,11 @@
 CWinApp theApp;
 
 using namespace std;
-USER_HANDLE g_server_id = INVALID_HANDLE; 
 
-static net_video_test* test = NULL;
-static UINT64 g_recved_len = 0;
 
 int attenuateRfid(CString ip , int value);
-int actionvideo(CString ip);
+int actionvideo(CString ip , unsigned int chan);
+int selnvr() ;
 void CALLBACK  draw_fun(PLAY_HANDLE handle,HDC hDc,LONG nUser );
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 {
@@ -33,11 +31,12 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 	HMODULE hModule = ::GetModuleHandle(NULL);
 	HW_NET_Init(5198);	
 
-	if (argc <= 2) {
+	if (argc <= 2 && argc != 1) {
 		printf("usage:cmd ip attenuation\n");
 		return 1;
 
 	}
+	
 	if (hModule != NULL)
 	{
 		// 初始化 MFC 并在失败时显示错误
@@ -49,8 +48,15 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 		}
 		else
 		{
+			if (argc == 1){
+               selnvr();
+			   getchar();
+			   getchar();
+			   return 0;
+
+			}
 			if ( atoi(argv[2]) < 0){
-			    actionvideo(argv[1]);
+			    actionvideo(argv[1] , atoi(argv[3]));
 				while (1){
 				  Sleep(60*1000*60*24);
 				}
@@ -74,6 +80,10 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 
 int attenuateRfid(CString ip , int value)
 {
+	USER_HANDLE g_server_id = INVALID_HANDLE; 
+
+   net_video_test* test = NULL;
+   UINT64 g_recved_len = 0;
 	long g_server_version;
 	if( g_server_id == INVALID_HANDLE)
 	{
@@ -150,10 +160,14 @@ int attenuateRfid(CString ip , int value)
 
 }
 
-int actionvideo(CString ip)
+int actionvideo(CString ip , unsigned int chan)
 {
 	
 //	char ip[255];
+	USER_HANDLE g_server_id = INVALID_HANDLE; 
+
+    net_video_test* test = NULL;
+    UINT64 g_recved_len = 0;
 	long g_server_version;
 	if( g_server_id == INVALID_HANDLE)
 	{
@@ -200,10 +214,12 @@ int actionvideo(CString ip)
 		 
 			if(g_server_id != INVALID_HANDLE)
 			{
-				test  = new net_video_test(g_server_id,0);
+				test  = new net_video_test(g_server_id,chan);
+				test->ip = ip;
+				test->channel = chan;
 				
 				//test->start_preview(NULL,0,1);
-				test->start_rfid(NULL);
+				if (false == test->start_rfid(NULL)) exit(1);
 			
 				//test->register_draw(draw_fun,(long)test);
 				//test[startvideocount ] ->enable_audio_preview(1);
@@ -216,11 +232,66 @@ int actionvideo(CString ip)
 		{
 			CString tmpstr = "登录 ";
 			printf(tmpstr+ip+" 失败!");
-			exit(1);
+			//exit(1);
+			return -1;
 		}
 	}
 
 
 	return 0;
+}
+
+
+int selnvr() 
+{
+	static char *opt_host_name = "192.168.1.14";        /*服务器主机名称 默认为localhost*/
+	static char *opt_user_name = "root";        /*数据库用户名 默认为当前登录名*/
+	static char *opt_password = "anti410";        /*密码 默认为空*/
+	static unsigned int opt_port_num = 0;            /*端口 使用内建值*/
+	static char *opt_socket_name = NULL;    /*socket name (use build-in value)*/
+	static char *opt_db_name = "rfvid";        /*数据库 名称 默认为空*/
+	static unsigned int opt_flags = 0; 
+
+	MYSQL *conn;                        /*pointer to connection handler*/
+	MYSQL_RES *results;
+    MYSQL_ROW record;
+
+	if( (conn = mysql_init(NULL))== NULL){
+		fprintf(stderr,"mysql 初始化失败(可能是内存溢出)!\n");
+		return -1;
+	}
+	/*连接到数据库*/
+	if(mysql_real_connect(conn,opt_host_name,opt_user_name,opt_password,
+		opt_db_name,opt_port_num,opt_socket_name,opt_flags) == NULL){            
+            
+			fprintf(stderr,"mysql_real_connect 失败:\nError %u (%s)\n",
+				mysql_errno(conn),mysql_error(conn));    
+
+			mysql_close(conn);
+			return -1;
+	}
+
+	printf("db success\n");
+
+
+	char *selsql="select  nvr.ipaddress , nrrelation.channelNum from nvr inner join nrrelation where nvr.id = nrrelation.nvrid and nrrelation.state = 0";
+	if(mysql_query(conn,selsql)){
+		        printf("无法查询数据库\n");
+				return -1;
+	}
+	results = mysql_store_result(conn);
+ 
+	while((record = mysql_fetch_row(results))) {
+		printf("%s - %s \n", record[0], record[1]);
+		actionvideo(record[0] ,atoi(record[1]));
+	}
+ 
+	mysql_free_result(results);
+	mysql_close(conn);
+	mysql_server_end();
+ 
+	return 0;
+
+
 }
 
