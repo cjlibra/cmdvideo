@@ -39,6 +39,17 @@ typedef struct
 
 rfid_data_t g_rfid_data;
 
+typedef struct 
+{
+	char rfid[4];
+	CTime starttime;
+	CTime endtime;
+	int avail;
+
+
+
+} RFIDTIMESTRU;
+#define RFIDCOUNT 2000
 class net_video_test
 {
 public:
@@ -46,6 +57,7 @@ public:
 	CString  ip;
 	unsigned int channel;
 	MYSQL *dbconn;
+	RFIDTIMESTRU rfidstrucs[RFIDCOUNT];
 public:
 	net_video_test(USER_HANDLE handle,int slot)
 		:m_s_handle(INVALID_HANDLE),m_l_handle(handle),m_slot(slot)
@@ -649,17 +661,53 @@ private:
 				}
 				printf("\n");
 				fflush(stdout);
+				CTime t1 = CTime::GetCurrentTime();
+				int bingoindex = 0;
+				for (int i=0;i<RFIDCOUNT;i++){
+					
+					if (memcmp(ptest->rfidstrucs[i].rfid,rfid_data+8,4) == 0){
+						printf("got\n");
+
+						bingoindex = i ;
+						break;
+
+					}
+					if (ptest->rfidstrucs[i].avail != 1) {
+						bingoindex = i ;
+						memcpy(ptest->rfidstrucs[bingoindex].rfid,rfid_data+8 , 4);
+						ptest->rfidstrucs[bingoindex].starttime = t1;
+						ptest->rfidstrucs[bingoindex].endtime = t1;
+						ptest->rfidstrucs[bingoindex].avail = 1;
+						break;
+
+					}
+
+				}
+				 
+				CTime t2 = CTime::GetCurrentTime();
+				CTimeSpan span=t2-ptest->rfidstrucs[bingoindex].endtime;
+				if (span.GetTotalSeconds() <= 20){
+					ptest->rfidstrucs[bingoindex].endtime = t2;
+					printf("%d\n",span.GetTotalSeconds());
+
+				}else{
+                    
+                    ptest->insertdata(ptest->dbconn,rfid_data ,&ptest->rfidstrucs[bingoindex]);
+					ptest->rfidstrucs[bingoindex].starttime =  t2;
+					ptest->rfidstrucs[bingoindex].endtime = t2;
+
+				}
+
 				
-				ptest->insertdata(ptest->dbconn,rfid_data);
 			}
 		}
 	}
 
 public:
-		int insertdata(MYSQL *dbconn ,char *rfid)
+		int insertdata(MYSQL *dbconn ,char *rfid ,RFIDTIMESTRU *pRfidTimeStru)
 		{
 			
-			CString sql = "insert into monitorlog(begintime,endtime,cardid,readerid) select '?1' ,'?2', card.id,nrrelation.readerid from card inner join nrrelation  join nvr where nvr.ipaddress = '?3' and card.UID = '?4' and nrrelation.channelNum = ?5 and nvr.id = nrrelation.nvrid";
+			CString sql = "insert into monitorlognew(begintime,endtime,cardid,readerid) select '?1' ,'?2', card.id,nrrelation.readerid from card inner join nrrelation  join nvr where nvr.ipaddress = '?3' and card.UID = '?4' and nrrelation.channelNum = ?5 and nvr.id = nrrelation.nvrid";
 			time_t  t;  
 			struct tm  *tp; 
 			t=time(NULL); 
@@ -681,8 +729,8 @@ public:
 			printf(rfidstr);
 			CString tmpstr;
 			tmpstr.Format("%d",channel);
-			sql.Replace("?1",nowtime);
-			sql.Replace("?2",nowtime);
+			sql.Replace("?1",pRfidTimeStru->starttime.Format("%Y-%m-%d %H:%M:%S"));
+			sql.Replace("?2",pRfidTimeStru->endtime.Format("%Y-%m-%d %H:%M:%S"));
 			sql.Replace("?3",ip);
 			sql.Replace("?4",rfidstr);
 			sql.Replace("?5",tmpstr);
